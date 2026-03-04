@@ -51,6 +51,11 @@ sudo systemctl enable --now docker
 sudo docker run hello-world
 ```
 
+## Docker Compose 測試
+本專案提供了一個快速測試 Docker Compose 的範例檔案：[DOCKER_COMPOSE_EXAMPLE.md](./DOCKER_COMPOSE_EXAMPLE.md)。
+
+你可以透過執行 `docker compose version` 確認是否安裝成功，並參考該範例啟動一個 Nginx 服務進行測試。
+
 ## 進階設定
 
 ### 免 sudo 執行 Docker
