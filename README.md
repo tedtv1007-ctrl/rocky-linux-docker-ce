@@ -1,6 +1,9 @@
-# Rocky Linux 10 安裝 Docker CE 指南
+# Rocky Linux 10 企業級容器化：Docker CE 安裝篇
 
-本專案提供在 Rocky Linux 10 上安裝 Docker CE (Community Edition) 的詳細步驟。
+本文件是「企業內部容器化案例」系列的第一部分，詳細說明如何在 Rocky Linux 10 上安裝並強化 Docker CE (Community Edition)。
+
+---
+**本系列導覽**：請參考 [INDEX.md](./INDEX.md) 查看從 Docker 升級到 K8S 的完整演進路徑。
 
 ## 系統需求
 - Rocky Linux 10 (Red Quartz)
