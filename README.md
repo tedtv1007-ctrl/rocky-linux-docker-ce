@@ -43,7 +43,7 @@ graph TD
     User -->|HTTP/HTTPS 流量| APISIX
     
     GitLab -->|觸發 CI Pipeline| Runner
-    Runner -->|構建與推送鏡像 (Kaniko)| Harbor
+    Runner -->|使用 Kaniko 構建與推送鏡像| Harbor
     ArgoCD -->|監聽配置變更| GitLab
     ArgoCD -->|自動部署應用| Kubeadm
     APISIX -->|路由至應用| Runner
