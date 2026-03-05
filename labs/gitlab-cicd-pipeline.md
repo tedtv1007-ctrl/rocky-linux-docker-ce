@@ -7,7 +7,8 @@
 2.  **GitLab Runner**: 觸發 K8S 中的 Runner 執行 Job。
 3.  **Build & Scan**: 執行單元測試、使用 Trivy 掃描代碼與鏡像。
 4.  **Push to Harbor**: 將構建成功的鏡像標籤並推送至 Harbor。
-5.  **Deploy to K8S**: 使用 Helm 或 kubectl 自動更新 K8S 中的應用版本。
+5.  **Update GitOps Repo**: CI 提交一個 commit 到 GitOps 專屬倉庫，更新 Image Tag。
+6.  **Argo CD Sync**: Argo CD 偵測到變更，自動將新版本同步到 K8S。
 
 ## 2. GitLab 專案變數設定 (Variables)
 在 GitLab 專案的 `Settings > CI/CD > Variables` 加入以下值：
@@ -48,15 +49,22 @@ security_scan:
   script:
     - trivy image --exit-code 0 --severity HIGH,CRITICAL $IMAGE_NAME:$IMAGE_TAG
 
-# --- 階段三：自動部署至 K8S ---
-deploy_job:
+# --- 階段三：更新 GitOps 倉庫 ---
+update_gitops_job:
   stage: deploy
-  image: bitnami/kubectl:latest
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git curl
   script:
-    - mkdir -p $HOME/.kube
-    - echo "$KUBECONFIG_BASE64" | base64 -d > $HOME/.kube/config
-    - kubectl set image deployment/my-app my-container=$IMAGE_NAME:$IMAGE_TAG -n production
-    - kubectl rollout status deployment/my-app -n production
+    - git clone https://git-bot:$GITOPS_TOKEN@gitlab.example.com/devops/gitops-repo.git
+    - cd gitops-repo
+    # 使用 sed 更新 values.yaml 中的 image tag
+    - sed -i "s/tag:.*/tag: $IMAGE_TAG/" values.yaml
+    - git config user.name "GitLab CI Bot"
+    - git config user.email "ci-bot@example.com"
+    - git add .
+    - git commit -m "feat: update image to $IMAGE_TAG [skip ci]"
+    - git push origin main
 ```
 
 ## 4. 關鍵技術點

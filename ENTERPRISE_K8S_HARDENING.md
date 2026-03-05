@@ -6,19 +6,21 @@
 
 當從基礎 `kubeadm` 環境邁向生產環境時，必須考慮以下關鍵組件的整合：
 
-### 1. 網路與安全 (Networking & Security) - Cilium
-- **核心技術**：eBPF。
-- **優勢**：
+### 1. 網路與安全 (Networking & Security)
+- **北向入口 (North-South)**：**APISIX**。作為企業級 API Gateway，提供路由維護、WAF 整合與認證管理。
+- **叢集資料面 (East-West)**：**Cilium (eBPF)**。
     - **Identity-based Security**：超越 IP，基於 Pod 身份進行 L3/L4 隔離。
     - **L7 控制**：針對 HTTP/gRPC API 進行細粒度管控。
     - **透明加密**：自動使用 IPsec 或 WireGuard 加密跨節點流量。
     - **可觀測性**：透過 **Hubble** 視覺化服務依賴圖。
 
-### 2. 機密管理 (Secrets Management) - Vault + ESO
-- **方案**：HashiCorp Vault + External Secrets Operator (ESO)。
-- **核心價值**：
-    - **Centralized Secrets**：避免將機敏資料直接存放在 Git (符合 GitOps 規範)。
+### 2. 機密管理與持續交付 (Secrets & GitOps)
+- **機密管理**：**Vault + External Secrets Operator (ESO)**。
+    - **Centralized Secrets**：避免將機敏資料直接存放在 Git。
     - **自動同步**：ESO 自動將 Vault 中的密鑰同步為 K8S Native Secrets。
+- **持續交付 (GitOps)**：**Argo CD**。
+    - **Pull-based CD**：叢集主動拉取 Git 狀態，而非 CI 工具主動推送到叢集。
+    - **自動漂移偵測**：確保叢集狀態永遠符合 Git 定義。
 
 ### 3. 可觀測性 (Observability) - Hubble + Prometheus + Grafana
 - **整合目標**：
