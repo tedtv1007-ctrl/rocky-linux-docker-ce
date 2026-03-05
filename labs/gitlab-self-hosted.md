@@ -2,18 +2,57 @@
 
 本指南說明如何在 Rocky Linux 10 上使用官方套件庫安裝並配置 GitLab Enterprise Edition (EE)。
 
-## 1. 為什麼選擇自建 GitLab？
+## 1. 部署架構建議：GitLab 要安裝在哪裡？
+
+### 推薦方案：獨立專屬伺服器 (Dedicated Server)
+
+GitLab **建議安裝在一台與 Kubernetes 叢集節點完全分離的獨立實體機或虛擬機上**，而非安裝在任何 K8S Master / Worker Node 上。
+
+```
+[ 企業網路 ]
+  │
+  ├── 【GitLab Server】  ← 安裝 GitLab EE 的獨立主機 (本指南)
+  │     (gitlab.company.com)
+  │
+  ├── 【K8S Master Node(s)】
+  │
+  ├── 【K8S Worker Node(s)】  ← GitLab Runner 以 K8S Executor 在此執行
+  │
+  └── 【Harbor Registry】  ← 私有映像倉庫
+```
+
+### 為什麼要獨立部署？
+
+| 考量 | 說明 |
+|------|------|
+| **資源隔離** | GitLab 包含 Postgres、Redis、Puma、Sidekiq 等多個服務，運行時會消耗大量記憶體 (至少 4 GB)，安裝在 K8S 節點上會與工作負載爭搶資源。 |
+| **穩定性** | 若 K8S 節點因升級或故障重啟，GitLab 也會中斷；獨立主機可確保 CI/CD 持續可用。 |
+| **安全性** | 原始碼倉庫應與執行環境隔離，降低供應鏈攻擊面。 |
+| **備份管理** | 獨立主機更容易對 GitLab 的資料目錄 (`/var/opt/gitlab`) 進行快照或異地備份。 |
+
+### 最低硬體建議
+
+| 規格 | 最低需求 | 建議需求 |
+|------|---------|---------|
+| CPU  | 2 vCPU  | 4 vCPU |
+| RAM  | 4 GB    | 8 GB 以上 |
+| 磁碟 | 50 GB   | 100 GB 以上 (視 Repo 大小調整) |
+| OS   | Rocky Linux 10 | Rocky Linux 10 |
+
+---
+
+## 2. 為什麼選擇自建 GitLab？
 - **資料主權**：原始碼與 CI/CD 產物完全存放在企業內部。
 - **效能控制**：根據團隊規模彈性調整 CPU 與 記憶體資源。
 - **整合能力**：方便與內部 LDAP/AD、機房網路及 K8S 叢集連動。
 
-## 2. 前置準備 (Prerequisites)
+## 3. 前置準備 (Prerequisites)
 - **OS**: Rocky Linux 10
 - **RAM**: 建議至少 4GB (8GB 以上更佳)
 - **Domain**: 建議準備一個 FQDN (例如 `gitlab.company.com`)
 - **防火牆**: 開放 HTTP (80), HTTPS (443), SSH (22)
 
-## 3. 安裝依賴套件與設定防火牆
+## 4. 安裝依賴套件與設定防火牆
 ```bash
 sudo dnf install -y curl policycoreutils openssh-server perl
 sudo systemctl enable --now sshd
@@ -25,7 +64,7 @@ sudo firewall-cmd --permanent --add-service=ssh
 sudo systemctl reload firewalld
 ```
 
-## 4. 安裝 GitLab EE
+## 5. 安裝 GitLab EE
 ### 新增 GitLab 套件庫
 ```bash
 curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh | sudo bash
@@ -37,14 +76,14 @@ curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rp
 sudo EXTERNAL_URL="http://gitlab.example.com" dnf install -y gitlab-ee
 ```
 
-## 5. 初始配置與管理員密碼
+## 6. 初始配置與管理員密碼
 安裝完成後，GitLab 會自動產生一個初始管理員 (`root`) 密碼，存放在：
 ```bash
 sudo cat /etc/gitlab/initial_root_password
 ```
 *注意：該檔案會在 24 小時後自動刪除，請儘速登入並修改密碼。*
 
-## 6. 進階設定 (HTTPS 與 SMTP)
+## 7. 進階設定 (HTTPS 與 SMTP)
 編輯 `/etc/gitlab/gitlab.rb` 設定檔：
 ```bash
 sudo vi /etc/gitlab/gitlab.rb
@@ -63,7 +102,7 @@ letsencrypt['contact_emails'] = ['admin@example.com']
 sudo gitlab-ctl reconfigure
 ```
 
-## 7. 管理常用指令
+## 8. 管理常用指令
 - **啟動所有服務**：`sudo gitlab-ctl start`
 - **停止所有服務**：`sudo gitlab-ctl stop`
 - **檢查服務狀態**：`sudo gitlab-ctl status`

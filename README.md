@@ -20,6 +20,7 @@
 
 ### 3️⃣ 第三階段：生產級強化 (Production Hardening)
 整合企業級工具，確保安全性與自動化。
+- [企業級 GitLab 自建指南 (Rocky Linux 10)](./labs/gitlab-self-hosted.md)
 - [GitLab Runner (K8S Executor) 部署指南](./labs/gitlab-runner-setup.md)
 - [企業級 K8S 架構強化建議](./ENTERPRISE_K8S_HARDENING.md)
 - **待實作項目**：
