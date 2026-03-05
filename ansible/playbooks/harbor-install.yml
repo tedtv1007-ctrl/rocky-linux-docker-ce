@@ -1,0 +1,42 @@
+---
+- name: Download and Prepare Harbor Offline Installer
+  hosts: mgmt_node
+  become: yes
+  vars:
+    harbor_version: "v2.11.0"
+    harbor_install_dir: "/opt/harbor"
+
+  tasks:
+    - name: Ensure /opt directory exists
+      file:
+        path: /opt
+        state: directory
+
+    - name: Check if Harbor is already extracted
+      stat:
+        path: "{{ harbor_install_dir }}/install.sh"
+      register: harbor_stat
+
+    - name: Download Harbor offline installer
+      get_url:
+        url: "https://github.com/goharbor/harbor/releases/download/{{ harbor_version }}/harbor-offline-installer-{{ harbor_version }}.tgz"
+        dest: "/tmp/harbor-offline-installer-{{ harbor_version }}.tgz"
+      when: not harbor_stat.stat.exists
+
+    - name: Extract Harbor installer
+      unarchive:
+        src: "/tmp/harbor-offline-installer-{{ harbor_version }}.tgz"
+        dest: "/opt"
+        remote_src: yes
+      when: not harbor_stat.stat.exists
+
+    - name: Copy harbor.yml.tmpl to harbor.yml
+      copy:
+        src: "{{ harbor_install_dir }}/harbor.yml.tmpl"
+        dest: "{{ harbor_install_dir }}/harbor.yml"
+        remote_src: yes
+        force: no
+
+    - name: Output instruction
+      debug:
+        msg: "Harbor is downloaded and extracted to {{ harbor_install_dir }}. Please edit harbor.yml and run ./install.sh --with-trivy"

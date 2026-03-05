@@ -2,10 +2,30 @@
 
 本指南說明如何在 Windows 10/11 專業版或伺服器版上，利用 Hyper-V 建立適用於本專案的 Rocky Linux 10.1 虛擬機環境。
 
-## 1. 網路架構設計
+## 1. 網路拓樸與架構規劃
 為了模擬企業環境並確保管理流量與測試流量分離，建議採用以下設計：
 
-*   **Virtual Switch (內部/Internal)**: 用於 VM1 (GitLab/Harbor) 與 VM2 (K8S) 之間的通訊。
+```mermaid
+graph TD
+    Internet((Internet)) <-->|Wi-Fi / Ethernet| HostPC[Windows Host PC <br> IP: DHCP]
+    
+    subgraph Hyper-V 虛擬環境
+        HostPC <-->|NAT Gateway <br> IP: 192.168.100.1| VSwitch[Virtual Switch <br> 'K8S-Internal']
+        
+        VSwitch <-->|eth0| VM1[Lab-VM1-Mgmt <br> IP: 192.168.100.10 <br> GitLab / Harbor]
+        VSwitch <-->|eth0| VM2[Lab-VM2-K8S <br> IP: 192.168.100.20 <br> K8S Master]
+        VSwitch <-->|eth0| VM3[Lab-VM3-Node2 <br> IP: 192.168.100.21 <br> K8S Worker]
+    end
+
+    style Internet fill:#e1f5fe,stroke:#01579b
+    style HostPC fill:#fff3e0,stroke:#e65100
+    style VSwitch fill:#e8f5e9,stroke:#1b5e20
+    style VM1 fill:#f3e5f5,stroke:#4a148c
+    style VM2 fill:#e3f2fd,stroke:#0d47a1
+    style VM3 fill:#e3f2fd,stroke:#0d47a1
+```
+
+*   **Virtual Switch (內部/Internal)**: 用於所有 VM 與 Windows 主機之間的通訊。
     *   名稱建議: `K8S-Internal`
 *   **靜態 IP 分配範例**:
     *   **VM1 (Management)**: `192.168.100.10` (FQDN: `gitlab.it205.ski.ad`, `harbor.it205.ski.ad`)

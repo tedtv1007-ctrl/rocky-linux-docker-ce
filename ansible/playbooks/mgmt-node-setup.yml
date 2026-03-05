@@ -1,0 +1,63 @@
+---
+- name: Management Node Setup (Docker, Compose, Prerequisites)
+  hosts: mgmt_node
+  become: yes
+  tasks:
+    - name: Disable SWAP
+      shell: swapoff -a
+
+    - name: Disable SWAP in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Install prerequisite packages
+      dnf:
+        name:
+          - curl
+          - policycoreutils
+          - openssh-server
+          - perl
+          - dnf-utils
+          - tar
+          - wget
+        state: present
+
+    - name: Add Docker repository
+      command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+
+    - name: Install Docker CE
+      dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Configure firewalld for HTTP, HTTPS, SSH
+      firewalld:
+        service: "{{ item }}"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      with_items:
+        - http
+        - https
+        - ssh
+      ignore_errors: yes
+
+    - name: Set SELinux to permissive mode (optional, but often needed for GitLab/Harbor complex setups)
+      selinux:
+        policy: targeted
+        state: permissive

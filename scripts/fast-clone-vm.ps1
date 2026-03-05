@@ -38,3 +38,11 @@ Set-VMMemory -VMName $NewVMName -DynamicMemoryEnabled $false
 Add-VMHardDiskDrive -VMName $NewVMName -Path $NewVHDPath
 
 Write-Host "Fast Clone Complete!" -ForegroundColor Green
+Write-Host "====================================================================" -ForegroundColor Yellow
+Write-Host "⚠️ IMPORTANT NEXT STEPS FOR ROCKY LINUX CLONES ⚠️" -ForegroundColor Yellow
+Write-Host "1. Start the VM: Start-VM -Name $NewVMName" -ForegroundColor Cyan
+Write-Host "2. Connect to the VM console and log in." -ForegroundColor Cyan
+Write-Host "3. Upload and run the identity reset script to prevent network conflicts:" -ForegroundColor Cyan
+Write-Host "   ./scripts/reset-vm-identity.sh <new-hostname> <new-ip>" -ForegroundColor White
+Write-Host "   Example: ./scripts/reset-vm-identity.sh $NewVMName 192.168.100.21" -ForegroundColor White
+Write-Host "====================================================================" -ForegroundColor Yellow

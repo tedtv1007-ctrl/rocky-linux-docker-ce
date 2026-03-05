@@ -5,8 +5,8 @@
 ## 1. 架構預覽
 1.  **Code Commit**: 開發者推送代碼至自建 GitLab。
 2.  **GitLab Runner**: 觸發 K8S 中的 Runner 執行 Job。
-3.  **Build & Scan**: 執行單元測試、使用 Trivy 掃描代碼與鏡像。
-4.  **Push to Harbor**: 將構建成功的鏡像標籤並推送至 Harbor。
+3.  **Build & Push (Kaniko)**: 使用 Kaniko 進行無特權 (Rootless) 的鏡像構建，並推送至 Harbor。
+4.  **Security Scan**: 使用 Trivy 掃描鏡像中的漏洞。
 5.  **Update GitOps Repo**: CI 提交一個 commit 到 GitOps 專屬倉庫，更新 Image Tag。
 6.  **Argo CD Sync**: Argo CD 偵測到變更，自動將新版本同步到 K8S。
 
@@ -15,9 +15,11 @@
 - `DOCKER_REGISTRY`: `harbor.example.com`
 - `DOCKER_USER`: `admin`
 - `DOCKER_PASS`: `harbor_password`
-- `KUBECONFIG_BASE64`: (將你的 `.kube/config` 檔案內容以 base64 編碼後的字串)
+- `GITOPS_TOKEN`: 具備寫入 GitOps 倉庫權限的 Access Token
 
-## 3. .gitlab-ci.yml 範例
+## 3. .gitlab-ci.yml 範例 (企業安全版)
+
+企業環境中，使用 Docker-in-Docker (DinD) 需要在 K8S 中開啟 Privileged 權限，這會帶來嚴重的安全風險。因此，我們採用 **Kaniko** 來進行安全的鏡像構建。
 
 ```yaml
 stages:
@@ -29,16 +31,21 @@ variables:
   IMAGE_NAME: $DOCKER_REGISTRY/library/my-web-app
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
 
-# --- 階段一：構建鏡像 ---
+# --- 階段一：安全構建與推送鏡像 (Kaniko) ---
 build_job:
   stage: build
-  image: docker:24.0
-  services:
-    - docker:24.0-dind
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
   script:
-    - echo "$DOCKER_PASS" | docker login $DOCKER_REGISTRY -u $DOCKER_USER --password-stdin
-    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
-    - docker push $IMAGE_NAME:$IMAGE_TAG
+    - mkdir -p /kaniko/.docker
+    # 建立 Harbor 的認證設定檔
+    - echo "{\"auths\":{\"$DOCKER_REGISTRY\":{\"username\":\"$DOCKER_USER\",\"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
+    # 使用 Kaniko 構建並推送
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${IMAGE_NAME}:${IMAGE_TAG}"
 
 # --- 階段二：安全性掃描 ---
 security_scan:
@@ -68,8 +75,8 @@ update_gitops_job:
 ```
 
 ## 4. 關鍵技術點
-- **Docker-in-Docker (DinD)**: 使用 `docker:dind` 服務，讓 K8S Runner 能執行 Docker 指令。
-- **Kubeconfig 隔離**: 使用 Base64 傳遞憑證，確保 Pipeline 具有連線 K8S 的權限。
+- **無特權構建 (Kaniko)**: 取代了不安全的 DinD，讓 K8S Runner 可以在不需要 root 權限的情況下構建 Docker 鏡像。
+- **GitOps 分離**: CI 只負責產生 Image 並更新配置庫 (Config Repo)，CD 由 Argo CD 負責主動拉取，實現真正的職責分離。
 - **ImagePullSecrets**: 確保 K8S 叢集已配置 Harbor 的存取權限 (參考 Harbor 指南)。
 
 ---
