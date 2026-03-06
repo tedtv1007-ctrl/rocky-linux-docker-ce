@@ -44,4 +44,4 @@ ansible-playbook playbooks/k8s-node-setup.yml
 ```
 
 ---
-*執行完畢後，您可以接續 `K8S_INSTALL_GUIDE.md` 執行 `kubeadm init` 或是依照 `labs/harbor-setup.md` 完成最後的密碼設定與啟動。*
+*執行完畢後，您可以接續 [Kubeadm 叢集搭建指南](../docs/03-stage-2-kubernetes/kubeadm-install.md) 執行 `kubeadm init` 或是依照 [Harbor 部署指南](../docs/02-stage-1-docker/harbor-setup.md) 完成最後的密碼設定與啟動。*

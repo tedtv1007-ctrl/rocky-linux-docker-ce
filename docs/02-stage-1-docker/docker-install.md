@@ -3,7 +3,7 @@
 本文件是「企業內部容器化案例」系列的第一部分，詳細說明如何在 Rocky Linux 10 上安裝並強化 Docker CE (Community Edition)。
 
 ---
-**本系列導覽**：請參考 [INDEX.md](./INDEX.md) 查看從 Docker 升級到 K8S 的完整演進路徑。
+**本系列導覽**：請參考 [README.md](../../README.md) 查看從 Docker 升級到 K8S 的完整演進路徑。
 
 ## 系統需求
 - Rocky Linux 10 (Red Quartz)
@@ -55,12 +55,12 @@ sudo docker run hello-world
 ```
 
 ## Docker Compose 測試
-本專案提供了一個快速測試 Docker Compose 的範例檔案：[DOCKER_COMPOSE_EXAMPLE.md](./DOCKER_COMPOSE_EXAMPLE.md)。
+本專案提供了一個快速測試 Docker Compose 的範例檔案：[compose-example.md](./compose-example.md)。
 
 你可以透過執行 `docker compose version` 確認是否安裝成功，並參考該範例啟動一個 Nginx 服務進行測試。
 
 ## Kubernetes (K8S) 佈署指南
-如果你需要進一步安裝 Kubernetes 叢集，請參考：[K8S_INSTALL_GUIDE.md](./K8S_INSTALL_GUIDE.md)。
+如果您需要進一步安裝 Kubernetes 叢集，請參考：[Kubeadm 叢集搭建指南](../03-stage-2-kubernetes/kubeadm-install.md)。
 
 該指南包含：
 1. 系統準備（Swap, SELinux, 網路參數設定）。

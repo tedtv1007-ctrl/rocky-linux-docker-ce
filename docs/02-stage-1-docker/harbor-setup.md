@@ -9,7 +9,7 @@
 - **Helm Chart 託管**：可作為 Helm Chart Repository 使用。
 
 ## 2. 前置準備
-- 已安裝 Docker 與 Docker Compose (參考 [README_DOCKER.md](../README_DOCKER.md))。
+- 已安裝 Docker 與 Docker Compose (參考 [Docker 安裝指南](./docker-install.md))。
 - 建議規格：4 CPU / 8GB RAM / 100GB Disk 以上。
 - 準備一個域名 (如 `harbor.example.com`)。
 
