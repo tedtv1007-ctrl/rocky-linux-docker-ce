@@ -3,7 +3,8 @@
 scripts/*.iso
 
 # VM files
-C:\Hyper-V\EnterpriseLab\
+# Windows absolute path removed to avoid Gitignore parsing issues in CI
+**/EnterpriseLab/
 *.vhdx
 
 # OS temporary files
