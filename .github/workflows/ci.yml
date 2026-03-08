@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Ansible Collections
-        run: ansible-galaxy collection install -r ansible/collections/requirements.yml -p ansible/collections
+        run: ansible-galaxy collection install -r ansible/collections/requirements.yml -p ansible/collections --force
 
       - name: Run Ansible Lint
         uses: ansible/ansible-lint@main
