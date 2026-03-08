@@ -1,42 +1,45 @@
 ---
 - name: Download and Prepare Harbor Offline Installer
   hosts: mgmt_node
-  become: yes
+  become: true
   vars:
     harbor_version: "v2.11.0"
     harbor_install_dir: "/opt/harbor"
 
   tasks:
     - name: Ensure /opt directory exists
-      file:
+      ansible.builtin.file:
         path: /opt
         state: directory
+        mode: "0755"
 
     - name: Check if Harbor is already extracted
-      stat:
+      ansible.builtin.stat:
         path: "{{ harbor_install_dir }}/install.sh"
       register: harbor_stat
 
     - name: Download Harbor offline installer
-      get_url:
+      ansible.builtin.get_url:
         url: "https://github.com/goharbor/harbor/releases/download/{{ harbor_version }}/harbor-offline-installer-{{ harbor_version }}.tgz"
         dest: "/tmp/harbor-offline-installer-{{ harbor_version }}.tgz"
+        mode: "0644"
       when: not harbor_stat.stat.exists
 
     - name: Extract Harbor installer
-      unarchive:
+      ansible.builtin.unarchive:
         src: "/tmp/harbor-offline-installer-{{ harbor_version }}.tgz"
         dest: "/opt"
-        remote_src: yes
+        remote_src: true
       when: not harbor_stat.stat.exists
 
     - name: Copy harbor.yml.tmpl to harbor.yml
-      copy:
+      ansible.builtin.copy:
         src: "{{ harbor_install_dir }}/harbor.yml.tmpl"
         dest: "{{ harbor_install_dir }}/harbor.yml"
-        remote_src: yes
-        force: no
+        remote_src: true
+        force: false
+        mode: "0644"
 
     - name: Output instruction
-      debug:
+      ansible.builtin.debug:
         msg: "Harbor is downloaded and extracted to {{ harbor_install_dir }}. Please edit harbor.yml and run ./install.sh --with-trivy"

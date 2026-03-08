@@ -46,7 +46,7 @@
         state: started
 
     - name: Configure firewalld for HTTP, HTTPS, SSH
-      firewalld:
+      ansible.posix.firewalld:
         service: "{{ item }}"
         permanent: yes
         state: enabled

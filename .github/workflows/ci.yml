@@ -2,57 +2,57 @@ name: Enterprise Containerization CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   # 1. 檢查所有 Markdown 文件的連結是否失效
   markdown-link-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Markdown Link Check
-      uses: gaurav-nelson/github-action-markdown-link-check@v1
-      with:
-        use-quiet-mode: 'yes'
-        use-verbose-mode: 'no'
-        config-file: '.github/workflows/mlc_config.json'
+      - uses: actions/checkout@v4
+      - name: Markdown Link Check
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'no'
+          config-file: '.github/workflows/mlc_config.json'
 
   # 2. 檢查 Ansible Playbooks 語法與規範
   ansible-lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: Run Ansible Lint
-      uses: ansible/ansible-lint@main
-      with:
-        path: "ansible/"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run Ansible Lint
+        uses: ansible/ansible-lint@main
+        with:
+          path: "ansible/"
 
   # 3. 檢查 Shell 腳本安全性與語法 (針對 scripts/*.sh)
   shellcheck:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Run ShellCheck
-      uses: ludeeus/action-shellcheck@master
-      with:
-        scandir: './scripts'
-        ignore: 'fast-clone-vm.ps1,setup-hyperv-lab.ps1' # 忽略 PowerShell 檔案
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          ignore: 'fast-clone-vm.ps1,setup-hyperv-lab.ps1' # 忽略 PowerShell 檔案
 
   # 4. (進階) 模擬 K8S 環境測試 (KinD)
   kind-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Create KinD Cluster
-      uses: engineerd/setup-kind@v0.5.0
-      with:
-        version: "v0.24.0"
-    - name: Test Kubernetes Environment
-      run: |
-        kubectl cluster-info
-        kubectl get nodes
-        echo "KinD Cluster is up and running. Ready for Stage 2/3 testing."
+      - uses: actions/checkout@v4
+      - name: Create KinD Cluster
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.24.0"
+      - name: Test Kubernetes Environment
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          echo "KinD Cluster is up and running. Ready for Stage 2/3 testing."
