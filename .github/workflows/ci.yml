@@ -30,7 +30,6 @@ jobs:
         uses: ansible/ansible-lint@main
         with:
           working_directory: "ansible/"
-          requirements_file: "requirements.yml"
 
   # 3. 檢查 Shell 腳本安全性與語法 (針對 scripts/*.sh)
   shellcheck:
