@@ -1,0 +1,5 @@
+---
+# Ansible-lint configuration
+# Exclude downloaded collections from linting - they are third-party code
+exclude_paths:
+  - ansible/collections/
