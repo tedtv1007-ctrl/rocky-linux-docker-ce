@@ -26,6 +26,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Install Ansible Collections
+        run: ansible-galaxy collection install -r ansible/collections/requirements.yml -p ansible/collections
+
       - name: Run Ansible Lint
         uses: ansible/ansible-lint@main
         with:
