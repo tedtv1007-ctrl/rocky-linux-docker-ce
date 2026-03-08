@@ -1,67 +1,71 @@
 ---
 - name: K8S Node Setup for Rocky Linux 10
   hosts: k8s_cluster
-  become: yes
+  become: true
   tasks:
     - name: Disable SWAP
-      shell: swapoff -a
+      ansible.builtin.command: swapoff -a
+      changed_when: false
 
     - name: Disable SWAP in fstab
-      replace:
+      ansible.builtin.replace:
         path: /etc/fstab
         regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
         replace: '# \1'
 
     - name: Load kernel modules for containerd and K8S
-      copy:
+      ansible.builtin.copy:
         dest: /etc/modules-load.d/k8s.conf
+        mode: "0644"
         content: |
           overlay
           br_netfilter
-      notify: load modules
+      notify: Load modules
 
     - name: Set sysctl parameters for K8S
-      sysctl:
+      ansible.posix.sysctl:
         name: "{{ item.name }}"
         value: "{{ item.value }}"
-        sysctl_set: yes
+        sysctl_set: true
         state: present
-        reload: yes
+        reload: true
       with_items:
         - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
         - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
         - { name: 'net.ipv4.ip_forward', value: '1' }
 
     - name: Add Docker repo for containerd
-      command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      ansible.builtin.command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
       args:
         creates: /etc/yum.repos.d/docker-ce.repo
 
     - name: Install containerd
-      dnf:
+      ansible.builtin.dnf:
         name: containerd.io
         state: present
 
     - name: Create containerd config directory
-      file:
+      ansible.builtin.file:
         path: /etc/containerd
         state: directory
+        mode: "0755"
 
     - name: Generate default containerd config
-      shell: containerd config default > /etc/containerd/config.toml
-      args:
+      ansible.builtin.shell:
+        cmd: containerd config default > /etc/containerd/config.toml
         creates: /etc/containerd/config.toml
 
     - name: Enable SystemdCgroup in containerd
-      replace:
+      ansible.builtin.replace:
         path: /etc/containerd/config.toml
         regexp: 'SystemdCgroup = false'
         replace: 'SystemdCgroup = true'
-      notify: restart containerd
+      notify: Restart containerd
 
     - name: Add Kubernetes repo
-      copy:
+      ansible.builtin.copy:
         dest: /etc/yum.repos.d/kubernetes.repo
+        mode: "0644"
         content: |
           [kubernetes]
           name=Kubernetes
@@ -71,7 +75,7 @@
           gpgkey=https://pkgs.k8s.io/core:/stable:/v1.31/rpm/repodata/repomd.xml.key
 
     - name: Install Kubernetes components
-      dnf:
+      ansible.builtin.dnf:
         name:
           - kubelet
           - kubeadm
@@ -80,20 +84,20 @@
         disable_excludes: kubernetes
 
     - name: Enable kubelet service
-      systemd:
+      ansible.builtin.systemd:
         name: kubelet
-        enabled: yes
+        enabled: true
         state: started
 
     - name: Disable firewalld
-      systemd:
+      ansible.builtin.systemd:
         name: firewalld
         state: stopped
-        enabled: no
-      ignore_errors: yes
+        enabled: false
+      failed_when: false
 
   handlers:
-    - name: load modules
+    - name: Load modules
       community.general.modprobe:
         name: "{{ item }}"
         state: present
@@ -101,8 +105,8 @@
         - overlay
         - br_netfilter
 
-    - name: restart containerd
-      systemd:
+    - name: Restart containerd
+      ansible.builtin.systemd:
         name: containerd
         state: restarted
-        enabled: yes
+        enabled: true

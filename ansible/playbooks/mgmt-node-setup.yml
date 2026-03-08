@@ -1,19 +1,20 @@
 ---
 - name: Management Node Setup (Docker, Compose, Prerequisites)
   hosts: mgmt_node
-  become: yes
+  become: true
   tasks:
     - name: Disable SWAP
-      shell: swapoff -a
+      ansible.builtin.command: swapoff -a
+      changed_when: false
 
     - name: Disable SWAP in fstab
-      replace:
+      ansible.builtin.replace:
         path: /etc/fstab
         regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
         replace: '# \1'
 
     - name: Install prerequisite packages
-      dnf:
+      ansible.builtin.dnf:
         name:
           - curl
           - policycoreutils
@@ -25,12 +26,12 @@
         state: present
 
     - name: Add Docker repository
-      command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      ansible.builtin.command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
       args:
         creates: /etc/yum.repos.d/docker-ce.repo
 
     - name: Install Docker CE
-      dnf:
+      ansible.builtin.dnf:
         name:
           - docker-ce
           - docker-ce-cli
@@ -40,24 +41,24 @@
         state: present
 
     - name: Enable and start Docker service
-      systemd:
+      ansible.builtin.systemd:
         name: docker
-        enabled: yes
+        enabled: true
         state: started
 
     - name: Configure firewalld for HTTP, HTTPS, SSH
       ansible.posix.firewalld:
         service: "{{ item }}"
-        permanent: yes
+        permanent: true
         state: enabled
-        immediate: yes
+        immediate: true
       with_items:
         - http
         - https
         - ssh
-      ignore_errors: yes
+      failed_when: false
 
-    - name: Set SELinux to permissive mode (optional, but often needed for GitLab/Harbor complex setups)
-      selinux:
+    - name: Set SELinux to permissive mode
+      ansible.posix.selinux:
         policy: targeted
         state: permissive
