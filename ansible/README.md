@@ -19,8 +19,24 @@ ansible/
 ## 執行需求
 在您的控制節點 (例如您的 Windows 透過 WSL，或任一 Linux 虛擬機) 執行以下操作：
 
-1. 安裝 Ansible: `sudo dnf install epel-release -y && sudo dnf install ansible -y`
-2. 確保控制節點可以無密碼 SSH 登入至各個目標節點 (VM1, VM2, VM3)。
+1. **安裝 Ansible**: `sudo dnf install epel-release -y && sudo dnf install ansible -y`
+2. **設定無密碼 SSH 登入**: 
+   為了讓 Ansible 能夠自動化操作目標節點，您需要從「控制節點」產生 SSH 金鑰並發送到「目標節點 (VM1, VM2, VM3)」：
+   
+   - **產生 SSH 金鑰** (若已有則跳過):
+     ```bash
+     ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa
+     ```
+   - **將金鑰複製到目標節點** (請替換為實際 IP):
+     ```bash
+     ssh-copy-id root@192.168.100.10
+     ssh-copy-id root@192.168.100.20
+     ssh-copy-id root@192.168.100.21
+     ```
+   - **測試連線**: 確保不需要密碼即可登入。
+     ```bash
+     ssh root@192.168.100.10 "hostname"
+     ```
 
 ## 使用方式
 
