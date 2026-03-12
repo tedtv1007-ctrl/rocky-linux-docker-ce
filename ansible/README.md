@@ -29,13 +29,13 @@ ansible/
      ```
    - **將金鑰複製到目標節點** (請替換為實際 IP):
      ```bash
-     ssh-copy-id root@192.168.100.10
-     ssh-copy-id root@192.168.100.20
-     ssh-copy-id root@192.168.100.21
+    ssh-copy-id root@192.168.250.10
+    ssh-copy-id root@192.168.250.20
+    ssh-copy-id root@192.168.250.21
      ```
    - **測試連線**: 確保不需要密碼即可登入。
      ```bash
-     ssh root@192.168.100.10 "hostname"
+    ssh root@192.168.250.10 "hostname"
      ```
 
 ## 使用方式

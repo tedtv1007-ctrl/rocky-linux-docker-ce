@@ -44,5 +44,5 @@ Write-Host "1. Start the VM: Start-VM -Name $NewVMName" -ForegroundColor Cyan
 Write-Host "2. Connect to the VM console and log in." -ForegroundColor Cyan
 Write-Host "3. Upload and run the identity reset script to prevent network conflicts:" -ForegroundColor Cyan
 Write-Host "   ./scripts/reset-vm-identity.sh <new-hostname> <new-ip>" -ForegroundColor White
-Write-Host "   Example: ./scripts/reset-vm-identity.sh $NewVMName 192.168.100.21" -ForegroundColor White
+Write-Host "   Example: ./scripts/reset-vm-identity.sh $NewVMName 192.168.250.21" -ForegroundColor White
 Write-Host "====================================================================" -ForegroundColor Yellow

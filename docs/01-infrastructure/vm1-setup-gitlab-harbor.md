@@ -6,7 +6,7 @@ This document details the installation process for GitLab Omnibus and Harbor on 
 
 ## 1. 前置需求 (Prerequisites)
 - **作業系統 (OS)**: Rocky Linux 10.1
-- **網路 (Network)**: 靜態 IP (例如: `192.168.100.10`) / Static IP (e.g., 192.168.100.10)
+- **網路 (Network)**: 靜態 IP (例如: `192.168.250.10`) / Static IP (e.g., 192.168.250.10)
 - **完整網域名稱 (FQDNs)**: `gitlab.it205.ski.ad`, `harbor.it205.ski.ad`
 - **憑證 (Certificates)**: 已信任 AD CS 根憑證 (Root CA)，並已簽發分葉憑證 (Leaf certificates)。 / AD CS Root CA trusted, Leaf certificates issued.
 

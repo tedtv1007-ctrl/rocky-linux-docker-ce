@@ -9,7 +9,7 @@ $SwitchName = "K8S-Internal"
 $ISOPath = "$PSScriptRoot\Rocky-10.1-x86_64-minimal.iso"
 # Updated to a more stable mirror/link
 $ISOUrl = "https://download.rockylinux.org/pub/rocky/10/isos/x86_64/Rocky-10-latest-x86_64-minimal.iso"
-$VMPath = "C:\Hyper-V\EnterpriseLab"
+$VMPath = "D:\HypervLinux\EnterpriseLab"
 
 # Check for Administrator privileges
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -41,7 +41,7 @@ if ($ExistingSwitch) {
         New-VMSwitch -Name $SwitchName -SwitchType Internal -ErrorAction Stop
         Start-Sleep -Seconds 2
         $NetAdapter = Get-NetAdapter -Name "vEthernet ($SwitchName)"
-        $NetAdapter | New-NetIPAddress -IPAddress 192.168.100.1 -PrefixLength 24 -ErrorAction SilentlyContinue
+        $NetAdapter | New-NetIPAddress -IPAddress 192.168.250.1 -PrefixLength 24 -ErrorAction SilentlyContinue
     } catch {
         Write-Error "Failed to create Virtual Switch. Error: $($_.Exception.Message)"
         Write-Host "TIP: Please open 'Virtual Switch Manager' in Hyper-V and manually delete '$SwitchName' if it exists." -ForegroundColor Yellow
@@ -101,4 +101,4 @@ foreach ($vm in $VMs) {
 }
 
 Write-Host "`nAll VMs prepared! Please start them in Hyper-V Manager to begin Rocky Linux installation." -ForegroundColor Green
-Write-Host "After OS installation, use nmcli to set IP 192.168.100.10 (VM1) and 192.168.100.20 (VM2)." -ForegroundColor Cyan
+Write-Host "After OS installation, use nmcli to set IP 192.168.250.10 (VM1) and 192.168.250.20 (VM2)." -ForegroundColor Cyan

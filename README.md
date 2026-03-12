@@ -41,9 +41,9 @@
 
 | 節點角色 | 承載核心服務 | 最低配置 (Lab) | IP 位址 (預設) |
 | :--- | :--- | :--- | :--- |
-| **Mgmt Node** | GitLab, Harbor | 4 vCPU, 8GB RAM | `192.168.100.10` |
-| **K8S Master** | Control Plane | 2 vCPU, 4GB RAM | `192.168.100.20` |
-| **K8S Worker** | App Pods, Ingress | 2 vCPU, 4GB RAM | `192.168.100.21` |
+| **Mgmt Node** | GitLab, Harbor | 4 vCPU, 8GB RAM | `192.168.250.10` |
+| **K8S Master** | Control Plane | 2 vCPU, 4GB RAM | `192.168.250.20` |
+| **K8S Worker** | App Pods, Ingress | 2 vCPU, 4GB RAM | `192.168.250.21` |
 
 ---
 

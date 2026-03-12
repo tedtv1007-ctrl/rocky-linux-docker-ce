@@ -10,11 +10,11 @@ graph TD
     Internet((Internet)) <-->|Wi-Fi / Ethernet| HostPC[Windows Host PC <br> IP: DHCP]
     
     subgraph Hyper-V 虛擬環境
-        HostPC <-->|NAT Gateway <br> IP: 192.168.100.1| VSwitch[Virtual Switch <br> 'K8S-Internal']
+        HostPC <-->|NAT Gateway <br> IP: 192.168.250.1| VSwitch[Virtual Switch <br> 'K8S-Internal']
         
-        VSwitch <-->|eth0| VM1[Lab-VM1-Mgmt <br> IP: 192.168.100.10 <br> GitLab / Harbor]
-        VSwitch <-->|eth0| VM2[Lab-VM2-K8S <br> IP: 192.168.100.20 <br> K8S Master]
-        VSwitch <-->|eth0| VM3[Lab-VM3-Node2 <br> IP: 192.168.100.21 <br> K8S Worker]
+        VSwitch <-->|eth0| VM1[Lab-VM1-Mgmt <br> IP: 192.168.250.10 <br> GitLab / Harbor]
+        VSwitch <-->|eth0| VM2[Lab-VM2-K8S <br> IP: 192.168.250.20 <br> K8S Master]
+        VSwitch <-->|eth0| VM3[Lab-VM3-Node2 <br> IP: 192.168.250.21 <br> K8S Worker]
     end
 
     style Internet fill:#e1f5fe,stroke:#01579b
@@ -28,9 +28,9 @@ graph TD
 *   **Virtual Switch (內部/Internal)**: 用於所有 VM 與 Windows 主機之間的通訊。
     *   名稱建議: `K8S-Internal`
 *   **靜態 IP 分配範例**:
-    *   **VM1 (Management)**: `192.168.100.10` (FQDN: `gitlab.it205.ski.ad`, `harbor.it205.ski.ad`)
-    *   **VM2 (K8S Node)**: `192.168.100.20`
-    *   **Windows Host**: `192.168.100.1` (作為 Gateway 或 DNS 轉發)
+    *   **VM1 (Management)**: `192.168.250.10` (FQDN: `gitlab.it205.ski.ad`, `harbor.it205.ski.ad`)
+    *   **VM2 (K8S Node)**: `192.168.250.20`
+    *   **Windows Host**: `192.168.250.1` (作為 Gateway 或 DNS 轉發)
 
 ## 2. 建立虛擬交換器
 1. 以管理員權限開啟 PowerShell。
@@ -40,7 +40,7 @@ graph TD
    ```
 3. 為 Windows 主機上的虛擬網卡設定 IP：
    ```powershell
-   Get-NetAdapter -Name "vEthernet (K8S-Internal)" | New-NetIPAddress -IPAddress 192.168.100.1 -PrefixLength 24
+    Get-NetAdapter -Name "vEthernet (K8S-Internal)" | New-NetIPAddress -IPAddress 192.168.250.1 -PrefixLength 24
    ```
 
 ## 3. 虛擬機規格建議 (Rocky Linux 10.1)

@@ -9,11 +9,11 @@ fi
 
 NEW_HOSTNAME=$1
 NEW_IP=$2
-GATEWAY="${3:-192.168.100.1}"
+GATEWAY="${3:-192.168.250.1}"
 
 if [ -z "$NEW_HOSTNAME" ] || [ -z "$NEW_IP" ]; then
     echo "Usage: $0 <new-hostname> <new-ip> [gateway]"
-    echo "Example: $0 k8s-worker-1 192.168.100.21"
+    echo "Example: $0 k8s-worker-1 192.168.250.21"
     exit 1
 fi
 
