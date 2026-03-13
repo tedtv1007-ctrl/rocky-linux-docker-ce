@@ -1,0 +1,33 @@
+{
+    "Network": {
+        "SwitchName": "K8S-Internal",
+        "Subnet": "192.168.250.0/24",
+        "Gateway": "192.168.250.1",
+        "DnsServers": ["8.8.8.8", "1.1.1.1"]
+    },
+    "Credentials": {
+        "DefaultUser": "sysadmin",
+        "DefaultPass": "admin123",
+        "RootPass": "admin123"
+    },
+    "Storage": {
+        "VMPath": "D:\\HypervLinux\\EnterpriseLab",
+        "BaseVhdxName": "Rocky-9-Cloud-Base.vhdx"
+    },
+    "VMs": [
+        {
+            "Name": "Lab-VM1-Mgmt",
+            "IP": "192.168.250.10",
+            "RAM": "4GB",
+            "CPU": 4,
+            "Role": "Management"
+        },
+        {
+            "Name": "Lab-VM2-K8S",
+            "IP": "192.168.250.20",
+            "RAM": "4GB",
+            "CPU": 4,
+            "Role": "K8S-Node"
+        }
+    ]
+}

@@ -1,0 +1,249 @@
+---
+- name: VM1 Control Plane Setup (GitLab + Harbor)
+  hosts: localhost   # Executed locally on VM1
+  become: true
+  vars:
+    fqdn_gitlab: "gitlab.it205.ski.ad"
+    fqdn_harbor: "harbor.it205.ski.ad"
+    harbor_version: "v2.11.0"
+    harbor_install_dir: "/opt/harbor"
+    source_certs_dir: "/tmp/certs"
+
+  tasks:
+    # -------------------------------------------------------------
+    # 1. System Dependencies and Docker
+    # -------------------------------------------------------------
+    - name: Disable SWAP
+      ansible.builtin.command: swapoff -a
+      changed_when: false
+
+    - name: Install prerequisite packages
+      ansible.builtin.dnf:
+        name:
+          - curl
+          - policycoreutils
+          - openssh-server
+          - perl
+          - dnf-utils
+          - tar
+          - wget
+        state: present
+
+    - name: Ensure SSH is enabled
+      ansible.builtin.systemd:
+        name: sshd
+        enabled: true
+        state: started
+
+    - name: Add Docker repository
+      ansible.builtin.command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+
+    - name: Install Docker CE
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    # -------------------------------------------------------------
+    # 2. Certificate Intelligence (AD CS or Self-Signed)
+    # -------------------------------------------------------------
+    - name: Check if Company Root CA exists
+      ansible.builtin.stat:
+        path: "{{ source_certs_dir }}/ad-cs-root-ca.crt"
+      register: root_ca_stat
+
+    - name: Create self-signed directory securely
+      ansible.builtin.file:
+        path: "/etc/pki/tls/private/selfsigned"
+        state: directory
+        mode: "0700"
+      when: not root_ca_stat.stat.exists
+
+    - name: Generate Self-Signed Root CA Key
+      ansible.builtin.command: >
+        openssl genrsa -out /etc/pki/tls/private/selfsigned/ca.key 4096
+      args:
+        creates: "/etc/pki/tls/private/selfsigned/ca.key"
+      when: not root_ca_stat.stat.exists
+
+    - name: Generate Self-Signed Root CA Cert
+      ansible.builtin.command: >
+        openssl req -x509 -new -nodes -key /etc/pki/tls/private/selfsigned/ca.key -sha256 -days 3650 -out /etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt -subj "/C=TW/ST=Taiwan/L=Taipei/O=IT205 Lab/CN=Local Lab Root CA"
+      args:
+        creates: "/etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt"
+      when: not root_ca_stat.stat.exists
+
+    - name: Ensure target cert directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /etc/gitlab/ssl
+        - /opt/harbor
+
+    # GitLab Certs Handling
+    - name: Check if Company GitLab certs exist
+      ansible.builtin.stat:
+        path: "{{ source_certs_dir }}/{{ fqdn_gitlab }}.crt"
+      register: gitlab_cert_stat
+
+    - name: Generate Self-Signed GitLab Certs (If Missing)
+      ansible.builtin.shell: |
+        openssl req -new -newkey rsa:4096 -nodes -keyout /etc/gitlab/ssl/{{ fqdn_gitlab }}.key -out /tmp/gitlab.csr -subj "/CN={{ fqdn_gitlab }}"
+        openssl x509 -req -in /tmp/gitlab.csr -CA /etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt -CAkey /etc/pki/tls/private/selfsigned/ca.key -CAcreateserial -out /etc/gitlab/ssl/{{ fqdn_gitlab }}.crt -days 3650 -sha256 -extfile <(printf "subjectAltName=DNS:{{ fqdn_gitlab }}")
+      args:
+        creates: "/etc/gitlab/ssl/{{ fqdn_gitlab }}.crt"
+        executable: /bin/bash
+      when: not gitlab_cert_stat.stat.exists
+
+    - name: Copy Company GitLab Certs (If Provided)
+      ansible.builtin.copy:
+        src: "{{ source_certs_dir }}/{{ item }}"
+        dest: "/etc/gitlab/ssl/{{ item }}"
+        remote_src: true
+      loop:
+        - "{{ fqdn_gitlab }}.crt"
+        - "{{ fqdn_gitlab }}.key"
+      when: gitlab_cert_stat.stat.exists
+
+    # Harbor Certs Handling
+    - name: Check if Company Harbor certs exist
+      ansible.builtin.stat:
+        path: "{{ source_certs_dir }}/{{ fqdn_harbor }}.crt"
+      register: harbor_cert_stat
+
+    - name: Generate Self-Signed Harbor Certs (If Missing)
+      ansible.builtin.shell: |
+        openssl req -new -newkey rsa:4096 -nodes -keyout /opt/harbor/{{ fqdn_harbor }}.key -out /tmp/harbor.csr -subj "/CN={{ fqdn_harbor }}"
+        openssl x509 -req -in /tmp/harbor.csr -CA /etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt -CAkey /etc/pki/tls/private/selfsigned/ca.key -CAcreateserial -out /opt/harbor/{{ fqdn_harbor }}.crt -days 3650 -sha256 -extfile <(printf "subjectAltName=DNS:{{ fqdn_harbor }}")
+      args:
+        creates: "/opt/harbor/{{ fqdn_harbor }}.crt"
+        executable: /bin/bash
+      when: not harbor_cert_stat.stat.exists
+
+    - name: Copy Company Harbor Certs (If Provided)
+      ansible.builtin.copy:
+        src: "{{ source_certs_dir }}/{{ item }}"
+        dest: "/opt/harbor/{{ item }}"
+        remote_src: true
+      loop:
+        - "{{ fqdn_harbor }}.crt"
+        - "{{ fqdn_harbor }}.key"
+      when: harbor_cert_stat.stat.exists
+
+    # Trust the Root CA
+    - name: Copy Root CA to Trust Store (From Dropzone)
+      ansible.builtin.copy:
+        src: "{{ source_certs_dir }}/ad-cs-root-ca.crt"
+        dest: "/etc/pki/ca-trust/source/anchors/ad-cs-root-ca.crt"
+        remote_src: true
+      when: root_ca_stat.stat.exists
+
+    - name: Copy Root CA to Trust Store (From Self-Signed)
+      ansible.builtin.copy:
+        src: "/etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt"
+        dest: "/etc/pki/ca-trust/source/anchors/ad-cs-root-ca.crt"
+        remote_src: true
+      when: not root_ca_stat.stat.exists
+
+    - name: Update System CA Trust
+      ansible.builtin.command: update-ca-trust
+
+    # -------------------------------------------------------------
+    # 3. GitLab Omnibus Installation
+    # -------------------------------------------------------------
+    - name: Check if GitLab is already installed
+      ansible.builtin.command: rpm -q gitlab-ee
+      register: gitlab_installed
+      failed_when: false
+      changed_when: false
+
+    - name: Download GitLab Setup Script
+      ansible.builtin.get_url:
+        url: https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh
+        dest: /tmp/gitlab-setup.sh
+        mode: '0755'
+      when: gitlab_installed.rc != 0
+
+    - name: Run GitLab Repo Setup Script
+      ansible.builtin.command: bash /tmp/gitlab-setup.sh
+      when: gitlab_installed.rc != 0
+
+    - name: Install GitLab Omnibus
+      ansible.builtin.dnf:
+        name: gitlab-ee
+        state: present
+      environment:
+        EXTERNAL_URL: "https://{{ fqdn_gitlab }}"
+      when: gitlab_installed.rc != 0
+
+    - name: Ensure GitLab is reconfigured and running
+      ansible.builtin.command: gitlab-ctl reconfigure
+      when: gitlab_installed.rc != 0
+
+    # -------------------------------------------------------------
+    # 4. Harbor Installation
+    # -------------------------------------------------------------
+    - name: Check if Harbor config exists
+      ansible.builtin.stat:
+        path: "{{ harbor_install_dir }}/harbor.yml"
+      register: harbor_config
+
+    - name: Download Harbor installer
+      ansible.builtin.get_url:
+        url: "https://github.com/goharbor/harbor/releases/download/{{ harbor_version }}/harbor-offline-installer-{{ harbor_version }}.tgz"
+        dest: "/tmp/harbor-offline-installer.tgz"
+      when: not harbor_config.stat.exists
+
+    - name: Extract Harbor
+      ansible.builtin.unarchive:
+        src: "/tmp/harbor-offline-installer.tgz"
+        dest: "/opt"
+        remote_src: true
+      when: not harbor_config.stat.exists
+
+    - name: Initialize harbor.yml
+      ansible.builtin.copy:
+        src: "{{ harbor_install_dir }}/harbor.yml.tmpl"
+        dest: "{{ harbor_install_dir }}/harbor.yml"
+        remote_src: true
+      when: not harbor_config.stat.exists
+
+    - name: Configure Harbor Hostname
+      ansible.builtin.replace:
+        path: "{{ harbor_install_dir }}/harbor.yml"
+        regexp: '^hostname:.*$'
+        replace: 'hostname: {{ fqdn_harbor }}'
+      when: not harbor_config.stat.exists
+
+    - name: Configure Harbor HTTPS Certificate
+      ansible.builtin.replace:
+        path: "{{ harbor_install_dir }}/harbor.yml"
+        regexp: '^\s{2}certificate:.*$'
+        replace: '  certificate: /opt/harbor/{{ fqdn_harbor }}.crt'
+      when: not harbor_config.stat.exists
+
+    - name: Configure Harbor HTTPS Private Key
+      ansible.builtin.replace:
+        path: "{{ harbor_install_dir }}/harbor.yml"
+        regexp: '^\s{2}private_key:.*$'
+        replace: '  private_key: /opt/harbor/{{ fqdn_harbor }}.key'
+      when: not harbor_config.stat.exists
+
+    - name: Execute Harbor Installer
+      ansible.builtin.command:
+        cmd: ./install.sh --with-trivy
+        chdir: "{{ harbor_install_dir }}"
+      when: not harbor_config.stat.exists

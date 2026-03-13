@@ -1,71 +1,103 @@
 # Hyper-V 實驗室環境配置指南
 
-本指南說明如何在 Windows 10/11 專業版或伺服器版上，利用 Hyper-V 建立適用於本專案的 Rocky Linux 10.1 虛擬機環境。
+本指南說明如何在 Windows 10/11 專業版或伺服器版上，利用 Hyper-V **全自動**建立與佈署適用於本專案的虛擬機環境。
 
-## 1. 網路拓樸與架構規劃
-為了模擬企業環境並確保管理流量與測試流量分離，建議採用以下設計：
+### 1. 調整全域配置 (選配)
+本專案所有的實驗室設定（IP、密碼、硬體規格）都集中在一個檔案，方便您快速調整：
+- **路徑**: [scripts/lab-config.json](file:///D:/tedtv_github/enterprise-containerization-cases/scripts/lab-config.json)
+- **可調整內容**: 預設密碼、VM 記憶體大小、IP 網段等。
+
+---
+
+### 2. 準備基礎作業系統映像檔
+
+為了模擬企業環境，我們使用具有 NAT 功能的內部虛擬交換器：
 
 ```mermaid
 graph TD
-    Internet((Internet)) <-->|Wi-Fi / Ethernet| HostPC[Windows Host PC <br> IP: DHCP]
+    Internet((Internet)) <-->|NAT Gateway| HostPC[Windows Host PC]
     
-    subgraph Hyper-V 虛擬環境
-        HostPC <-->|NAT Gateway <br> IP: 192.168.250.1| VSwitch[Virtual Switch <br> 'K8S-Internal']
+    subgraph Hyper-V 內部網路 (192.168.250.0/24)
+        HostPC <-->|Gateway: 192.168.250.1| VSwitch[VSwitch: K8S-Internal]
         
-        VSwitch <-->|eth0| VM1[Lab-VM1-Mgmt <br> IP: 192.168.250.10 <br> GitLab / Harbor]
-        VSwitch <-->|eth0| VM2[Lab-VM2-K8S <br> IP: 192.168.250.20 <br> K8S Master]
-        VSwitch <-->|eth0| VM3[Lab-VM3-Node2 <br> IP: 192.168.250.21 <br> K8S Worker]
+        VSwitch <-->|eth0| VM1[Lab-VM1-Mgmt <br> 192.168.250.10 <br> GitLab / Harbor]
+        VSwitch <-->|eth0| VM2[Lab-VM2-K8S <br> 192.168.250.20 <br> Kubernetes Node]
     end
-
-    style Internet fill:#e1f5fe,stroke:#01579b
-    style HostPC fill:#fff3e0,stroke:#e65100
-    style VSwitch fill:#e8f5e9,stroke:#1b5e20
-    style VM1 fill:#f3e5f5,stroke:#4a148c
-    style VM2 fill:#e3f2fd,stroke:#0d47a1
-    style VM3 fill:#e3f2fd,stroke:#0d47a1
 ```
 
-*   **Virtual Switch (內部/Internal)**: 用於所有 VM 與 Windows 主機之間的通訊。
-    *   名稱建議: `K8S-Internal`
-*   **靜態 IP 分配範例**:
-    *   **VM1 (Management)**: `192.168.250.10` (FQDN: `gitlab.it205.ski.ad`, `harbor.it205.ski.ad`)
-    *   **VM2 (K8S Node)**: `192.168.250.20`
-    *   **Windows Host**: `192.168.250.1` (作為 Gateway 或 DNS 轉發)
+## 2. 佈署流程 (IaC 快速開始)
 
-## 2. 建立虛擬交換器
-1. 以管理員權限開啟 PowerShell。
-2. 執行以下命令建立內部交換器：
+本專案將建置分為兩個階段：**環境準備**與**服務安裝**。所有腳本均位於 `scripts/` 目錄下。
+
+### 第一階段：環境準備 (Infrastructure Setup)
+
+1. **以管理員身分開啟 PowerShell**。
+2. **準備基礎映像檔**：下載並轉換 Rocky Linux 9 雲端映像檔 (僅需執行一次)。
    ```powershell
-   New-VMSwitch -Name "K8S-Internal" -SwitchType Internal
+   .\scripts\prepare-base-vhdx.ps1
    ```
-3. 為 Windows 主機上的虛擬網卡設定 IP：
+3. **建立虛擬機與網路**：建立 Switch、NAT 並產生兩台虛擬機。
    ```powershell
-    Get-NetAdapter -Name "vEthernet (K8S-Internal)" | New-NetIPAddress -IPAddress 192.168.250.1 -PrefixLength 24
+   .\scripts\setup-hyperv-lab.ps1
+   ```
+4. **啟動虛擬機**：在 Hyper-V 管理員中啟動 `Lab-VM1-Mgmt` 手動確認其已開機。
+
+### 第二階段：服務部署 (Service Deployment)
+
+當虛擬機開機完畢後，執行以下腳本進行自動化服務安裝：
+
+1. **部署 VM1 服務 (GitLab & Harbor)**：
+   ```powershell
+   .\scripts\deploy-vm1-services.ps1
+   ```
+   > [!NOTE]
+   > 首次執行需輸入一次密碼 `admin123` 以建立 SSH 金鑰連線，之後將全自動執行。
+
+2. **部署 VM2 服務 (K8S 元件)**：
+   ```powershell
+   .\scripts\deploy-vm2-k8s.ps1
    ```
 
-## 3. 虛擬機規格建議 (Rocky Linux 10.1)
+## 3. 預設登入資訊
 
-### VM1: Control Plane (GitLab + Harbor)
-*   **CPU**: 4 vCPUs (最低)
-*   **RAM**: 8 GB (建議 12 GB 以上)
-*   **Disk**: 100 GB (Thin Provisioning)
-*   **Generation**: Generation 2 (支援 UEFI 與 Secure Boot)
+| 服務/主機 | 存取方式 | 帳號 | 預設密碼 |
+| :--- | :--- | :--- | :--- |
+| **OS 登入** | SSH: `192.168.250.10` / `.20` | `sysadmin` | `admin123` |
+| **GitLab** | `https://gitlab.it205.ski.ad` | `root` | *見 VM1 /etc/gitlab/initial_root_password* |
+| **Harbor** | `https://harbor.it205.ski.ad` | `admin` | `Harbor12345` |
 
-### VM2: Test Cluster (K8S Single Node)
-*   **CPU**: 4 vCPUs
-*   **RAM**: 8 GB
-*   **Disk**: 60 GB
-*   **Generation**: Generation 2
-*   **重要**: 必須在 Hyper-V 中停用「動態記憶體 (Dynamic Memory)」，否則 Kubelet 可能會因記憶體壓力回報錯誤。
+## 4. 虛擬機規格配置 (自動設定)
 
-## 4. 啟用巢狀虛擬化 (可選)
-如果您打算在 VM2 內運行 KinD 或其他容器內容器技術，請在 Windows 主機上執行：
-```powershell
-Set-VMProcessor -VMName "VM2_Name" -ExposeVirtualizationExtensions $true
+*   **作業系統**: Rocky Linux 9 (Generic Cloud Image)
+*   **記憶體**: 4GB (啟動與最大值)，確保服務運行順暢。
+*   **處理器**: 4 vCPUs
+*   **Secure Boot**: 已關閉 (Cloud Image 相容性需求)。
+
+## 5. 本機 DNS 設定 (Windows Host)
+
+為了讓您的 Windows 瀏覽器能正確解析站台，請修改 `C:\Windows\System32\drivers\etc\hosts` 檔案，加入以下內容：
+```text
+192.168.250.10 gitlab.it205.ski.ad harbor.it205.ski.ad
 ```
 
-## 5. 靜態 MAC 地址
-為了避免 Hyper-V 重新啟動後 MAC 變動導致 DHCP 租約或證書綁定失效，建議在 VM 設定中將 MAC 地址改為「靜態」。
+## 6. 後續步驟：K8S 叢集初始化
+
+當 `deploy-vm2-k8s.ps1` 執行完畢後，請 SSH 進入 VM2：
+```bash
+ssh sysadmin@192.168.250.20
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+```
+初始化成功後，請依循畫面提示設定 `kubeconfig` 並安裝 CNI 網路插件。
 
 ---
-*Reference: enterprise-containerization-cases Issue #2*
+
+## ⚙️ 實驗室全局配置 (lab-config.json)
+
+本專案所有的 IP、網段、虛擬機規格、帳號與密碼，皆統一於 [scripts/lab-config.json](file:///D:/tedtv_github/enterprise-containerization-cases/scripts/lab-config.json) 進行設定。
+
+> [!TIP]
+> **在開始佈署前，您可以先編輯此 JSON 檔**，來自定義您的環境（例如更改預設密碼 `admin123`）。
+
+---
+*最後更新日期: 2026-03-13*
+
