@@ -100,8 +100,8 @@
       register: gitlab_cert_stat
 
     - name: Generate Self-Signed GitLab Certs (If Missing)
-      ansible.builtin.shell: |
-        openssl req -new -newkey rsa:4096 -nodes -keyout /etc/gitlab/ssl/{{ fqdn_gitlab }}.key -out /tmp/gitlab.csr -subj "/CN={{ fqdn_gitlab }}"
+      ansible.builtin.shell: >
+        openssl req -new -newkey rsa:4096 -nodes -keyout /etc/gitlab/ssl/{{ fqdn_gitlab }}.key -out /tmp/gitlab.csr -subj "/CN={{ fqdn_gitlab }}" &&
         openssl x509 -req -in /tmp/gitlab.csr -CA /etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt -CAkey /etc/pki/tls/private/selfsigned/ca.key -CAcreateserial -out /etc/gitlab/ssl/{{ fqdn_gitlab }}.crt -days 3650 -sha256 -extfile <(printf "subjectAltName=DNS:{{ fqdn_gitlab }}")
       args:
         creates: "/etc/gitlab/ssl/{{ fqdn_gitlab }}.crt"
@@ -113,6 +113,7 @@
         src: "{{ source_certs_dir }}/{{ item }}"
         dest: "/etc/gitlab/ssl/{{ item }}"
         remote_src: true
+        mode: "0600"
       loop:
         - "{{ fqdn_gitlab }}.crt"
         - "{{ fqdn_gitlab }}.key"
@@ -125,8 +126,8 @@
       register: harbor_cert_stat
 
     - name: Generate Self-Signed Harbor Certs (If Missing)
-      ansible.builtin.shell: |
-        openssl req -new -newkey rsa:4096 -nodes -keyout /opt/harbor/{{ fqdn_harbor }}.key -out /tmp/harbor.csr -subj "/CN={{ fqdn_harbor }}"
+      ansible.builtin.shell: >
+        openssl req -new -newkey rsa:4096 -nodes -keyout /opt/harbor/{{ fqdn_harbor }}.key -out /tmp/harbor.csr -subj "/CN={{ fqdn_harbor }}" &&
         openssl x509 -req -in /tmp/harbor.csr -CA /etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt -CAkey /etc/pki/tls/private/selfsigned/ca.key -CAcreateserial -out /opt/harbor/{{ fqdn_harbor }}.crt -days 3650 -sha256 -extfile <(printf "subjectAltName=DNS:{{ fqdn_harbor }}")
       args:
         creates: "/opt/harbor/{{ fqdn_harbor }}.crt"
@@ -138,6 +139,7 @@
         src: "{{ source_certs_dir }}/{{ item }}"
         dest: "/opt/harbor/{{ item }}"
         remote_src: true
+        mode: "0644"
       loop:
         - "{{ fqdn_harbor }}.crt"
         - "{{ fqdn_harbor }}.key"
@@ -149,6 +151,7 @@
         src: "{{ source_certs_dir }}/ad-cs-root-ca.crt"
         dest: "/etc/pki/ca-trust/source/anchors/ad-cs-root-ca.crt"
         remote_src: true
+        mode: "0644"
       when: root_ca_stat.stat.exists
 
     - name: Copy Root CA to Trust Store (From Self-Signed)
@@ -156,10 +159,12 @@
         src: "/etc/pki/tls/private/selfsigned/ad-cs-root-ca.crt"
         dest: "/etc/pki/ca-trust/source/anchors/ad-cs-root-ca.crt"
         remote_src: true
+        mode: "0644"
       when: not root_ca_stat.stat.exists
 
     - name: Update System CA Trust
       ansible.builtin.command: update-ca-trust
+      changed_when: true
 
     # -------------------------------------------------------------
     # 3. GitLab Omnibus Installation
@@ -168,6 +173,7 @@
       ansible.builtin.command: rpm -q gitlab-ee
       register: gitlab_installed
       failed_when: false
+      changed_when: false
       changed_when: false
 
     - name: Download GitLab Setup Script
