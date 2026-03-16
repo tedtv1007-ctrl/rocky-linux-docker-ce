@@ -30,6 +30,7 @@
         src: "/tmp/harbor-offline-installer-{{ harbor_version }}.tgz"
         dest: "/opt"
         remote_src: true
+        mode: "0755"
       when: not harbor_stat.stat.exists
 
     - name: Copy harbor.yml.tmpl to harbor.yml

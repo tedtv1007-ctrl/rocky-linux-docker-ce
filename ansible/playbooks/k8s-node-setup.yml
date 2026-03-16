@@ -93,6 +93,7 @@
         state: stopped
         enabled: false
       failed_when: false
+      changed_when: false
 
   handlers:
     - name: Load modules
@@ -100,9 +101,11 @@
       loop:
         - overlay
         - br_netfilter
+      changed_when: true
 
     - name: Apply sysctl
       ansible.builtin.command: sysctl --system
+      changed_when: true
 
     - name: Restart containerd
       ansible.builtin.systemd:
