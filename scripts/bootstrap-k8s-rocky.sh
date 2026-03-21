@@ -58,7 +58,7 @@ sudo systemctl restart containerd
 sudo systemctl enable containerd
 
 # 4. Install K8S Components
-echo "[4/6] Installing kubeadm, kubelet, kubectl..."
+echo "[4/6] Installing kubeadm, kubelet, kubectl & network tools..."
 cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
@@ -68,8 +68,12 @@ gpgcheck=1
 gpgkey=https://pkgs.k8s.io/core:/stable:/v1.31/rpm/repodata/repomd.xml.key
 EOF
 
-sudo dnf install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+# Install K8S tools + conntrack (Mandatory for K8S networking)
+sudo dnf install -y kubelet kubeadm kubectl conntrack-tools --disableexcludes=kubernetes
 sudo systemctl enable --now kubelet
+
+# Fix local hostname resolution for kubeadm pre-flight checks
+echo "127.0.0.1 $(hostname)" | sudo tee -a /etc/hosts
 
 # 5. Firewall (Permissive for Lab, but documented)
 echo "[5/6] Adjusting Firewall..."

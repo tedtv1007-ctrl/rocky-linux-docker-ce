@@ -1,19 +1,23 @@
 ---
-- name: K8S Node Setup for Rocky Linux 9
+- name: K8S Node Setup for Rocky Linux 9 (Enterprise Hardened)
   hosts: k8s_cluster
   become: true
+  vars:
+    k8s_version: "v1.31"
+    containerd_config_path: "/etc/containerd/config.toml"
   tasks:
-    - name: Disable SWAP
+    - name: Disable SWAP immediately
       ansible.builtin.command: swapoff -a
-      changed_when: false
+      when: ansible_swaptotal_mb > 0
+      changed_when: true
 
-    - name: Disable SWAP in fstab
+    - name: Ensure SWAP is disabled in fstab for persistence
       ansible.builtin.replace:
         path: /etc/fstab
         regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
         replace: '# \1'
 
-    - name: Load kernel modules for containerd and K8S
+    - name: Configure kernel modules for K8S
       ansible.builtin.copy:
         dest: /etc/modules-load.d/k8s.conf
         mode: "0644"
@@ -22,7 +26,7 @@
           br_netfilter
       notify: Load modules
 
-    - name: Set sysctl parameters for K8S
+    - name: Fine-tune sysctl parameters for production K8S
       ansible.builtin.copy:
         dest: /etc/sysctl.d/k8s.conf
         mode: "0644"
@@ -30,49 +34,48 @@
           net.bridge.bridge-nf-call-iptables = 1
           net.bridge.bridge-nf-call-ip6tables = 1
           net.ipv4.ip_forward = 1
+          net.ipv4.conf.all.forwarding = 1
       notify: Apply sysctl
 
-    - name: Add Docker repo for containerd
-      ansible.builtin.command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-      args:
-        creates: /etc/yum.repos.d/docker-ce.repo
+    - name: Add Docker repository for containerd
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+        mode: "0644"
 
-    - name: Install containerd
+    - name: Install containerd.io
       ansible.builtin.dnf:
         name: containerd.io
         state: present
 
-    - name: Create containerd config directory
+    - name: Ensure containerd config directory exists
       ansible.builtin.file:
         path: /etc/containerd
         state: directory
         mode: "0755"
 
-    - name: Generate default containerd config
+    - name: Generate containerd default config if missing
       ansible.builtin.shell:
-        cmd: containerd config default > /etc/containerd/config.toml
-        creates: /etc/containerd/config.toml
+        cmd: containerd config default > {{ containerd_config_path }}
+        creates: "{{ containerd_config_path }}"
 
-    - name: Enable SystemdCgroup in containerd
+    - name: Enable SystemdCgroup in containerd for K8S compatibility
       ansible.builtin.replace:
-        path: /etc/containerd/config.toml
+        path: "{{ containerd_config_path }}"
         regexp: 'SystemdCgroup = false'
         replace: 'SystemdCgroup = true'
       notify: Restart containerd
 
-    - name: Add Kubernetes repo
-      ansible.builtin.copy:
-        dest: /etc/yum.repos.d/kubernetes.repo
-        mode: "0644"
-        content: |
-          [kubernetes]
-          name=Kubernetes
-          baseurl=https://pkgs.k8s.io/core:/stable:/v1.31/rpm/
-          enabled=1
-          gpgcheck=1
-          gpgkey=https://pkgs.k8s.io/core:/stable:/v1.31/rpm/repodata/repomd.xml.key
+    - name: Configure Kubernetes repository ({{ k8s_version }})
+      ansible.builtin.yum_repository:
+        name: kubernetes
+        description: Kubernetes
+        baseurl: "https://pkgs.k8s.io/core:/stable:/{{ k8s_version }}/rpm/"
+        enabled: true
+        gpgcheck: true
+        gpgkey: "https://pkgs.k8s.io/core:/stable:/{{ k8s_version }}/rpm/repodata/repomd.xml.key"
 
-    - name: Install Kubernetes components
+    - name: Install Kubernetes core components
       ansible.builtin.dnf:
         name:
           - kubelet
@@ -81,18 +84,26 @@
         state: present
         disable_excludes: kubernetes
 
-    - name: Enable kubelet service
+    - name: Enable and start kubelet service
       ansible.builtin.systemd:
         name: kubelet
         enabled: true
         state: started
 
-    - name: Disable firewalld
-      ansible.builtin.systemd:
-        name: firewalld
-        state: stopped
-        enabled: false
-      failed_when: false
+    - name: Configure firewalld for K8S (Control Plane / Worker)
+      ansible.builtin.firewalld:
+        port: "{{ item }}"
+        permanent: true
+        state: enabled
+        immediate: true
+      loop:
+        - 6443/tcp # API Server
+        - 10250/tcp # Kubelet API
+        - 2379-2380/tcp # etcd
+        - 10251/tcp # Scheduler
+        - 10252/tcp # Controller Manager
+        - 30000-32767/tcp # NodePort Services
+      ignore_errors: true # In case firewalld is not active
 
   handlers:
     - name: Load modules
@@ -100,9 +111,11 @@
       loop:
         - overlay
         - br_netfilter
+      changed_when: true
 
     - name: Apply sysctl
       ansible.builtin.command: sysctl --system
+      changed_when: true
 
     - name: Restart containerd
       ansible.builtin.systemd:

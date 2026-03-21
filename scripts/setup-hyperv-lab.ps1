@@ -160,7 +160,7 @@ Set-Content -Path "$($DriveLetter):\network-config" -Value $NetworkConfig -Encod
         $newVM = New-VM -Name $vm.Name -MemoryStartupBytes $RAMBytes -Generation 2 -Path $VMPath -SwitchName $SwitchName
         
         Set-VMProcessor -VMName $vm.Name -Count $vm.CPU
-        Set-VMMemory -VMName $vm.Name -DynamicMemoryEnabled $true -MinimumBytes 1GB -MaximumBytes $RAMBytes
+        Set-VMMemory -VMName $vm.Name -DynamicMemoryEnabled $true -MinimumBytes 3GB -MaximumBytes $RAMBytes
         Set-VM -Name $vm.Name -CheckpointType Disabled
         Set-VMFirmware -VMName $vm.Name -EnableSecureBoot Off
         
