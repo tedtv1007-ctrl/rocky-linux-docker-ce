@@ -46,15 +46,49 @@ build_job:
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
       --destination "${IMAGE_NAME}:${IMAGE_TAG}"
-
-# --- 階段二：安全性掃描 ---
+# --- 階段二：安全性掃描與 SBOM 生成 ---
 security_scan:
   stage: scan
   image: 
     name: aquasec/trivy:latest
     entrypoint: [""]
+  cache:
+    key: trivy-cache
+    paths:
+      - .trivycache/
   script:
-    - trivy image --exit-code 0 --severity HIGH,CRITICAL $IMAGE_NAME:$IMAGE_TAG
+    # 產生 SBOM (CycloneDX 格式) 用於合規審計
+    - trivy image --format cyclonedx --output sbom.json $IMAGE_NAME:$IMAGE_TAG
+    # 漏洞掃描：發現 CRITICAL 漏洞時強制中斷流水線 (exit-code 1)
+    - trivy image --exit-code 1 --severity CRITICAL --cache-dir .trivycache/ $IMAGE_NAME:$IMAGE_TAG
+    # 漏洞報告：記錄 HIGH 漏洞但不阻斷 (exit-code 0)
+    - trivy image --exit-code 0 --severity HIGH --cache-dir .trivycache/ $IMAGE_NAME:$IMAGE_TAG
+  artifacts:
+    paths:
+      - sbom.json
+    expire_in: 1 week
+
+## 4. 企業級 .NET 9 安全 Dockerfile 實踐
+
+依照 `devops` 技能的最佳實踐，自建 .NET 應用應採用 **Multi-stage** 構建與 **Ubuntu Chiseled** 最小化鏡像，並以 **非 root 用戶** 運行：
+
+```dockerfile
+# Stage 1: Build (.NET 9 SDK)
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY . .
+RUN dotnet publish -c Release -o /app
+
+# Stage 2: Runtime (Ubuntu Chiseled - 最小攻擊面)
+# .NET 9 Chiseled 鏡像預設以 app 用戶 (ID 1654) 運行，具備極高安全性
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble-chiseled
+WORKDIR /app
+COPY --from=build /app .
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "MyApp.dll"]
+```
+
+## 5. 關鍵技術點
 
 # --- 階段三：更新 GitOps 倉庫 ---
 update_gitops_job:

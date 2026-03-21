@@ -13,8 +13,19 @@
     - **L7 控制**：針對 HTTP/gRPC API 進行細粒度管控。
     - **透明加密**：自動使用 IPsec 或 WireGuard 加密跨節點流量。
     - **可觀測性**：透過 **Hubble** 視覺化服務依賴圖。
+- **運行時安全 (Runtime Security)**：**Falco**。
+    - **威脅偵測**：監控異常 Syscalls、未經授權的文件訪問或容器逃逸行為。
+    - **即時告警**：整合 Falcosidekick 將異常行為推送到 Slack/Teams。
 
-### 2. 機密管理與持續交付 (Secrets & GitOps)
+### 2. 供應鏈安全與策略管控 (Supply Chain & Policy)
+- **鏡像安全掃描**：**Trivy**。
+    - **CI/CD 整合**：在 GitLab CI 構建階段自動掃描漏洞 (CVE) 與機密流失。
+    - **Harbor 整合**：在鏡像推送到私有倉庫時執行掃描，禁止有高危漏洞的鏡像被拉取。
+- **策略強制執行**：**Pod Security Admission (PSA)**。
+    - **標準分層**：實施 `Privileged`、`Baseline` 與 `Restricted` 三種安全層級。
+    - **Non-root 強制**：在 `Restricted` 命名空間中強制容器以非 root 用戶運行。
+
+### 3. 機密管理與持續交付 (Secrets & GitOps)
 - **機密管理**：**Vault + External Secrets Operator (ESO)**。
     - **Centralized Secrets**：避免將機敏資料直接存放在 Git。
     - **自動同步**：ESO 自動將 Vault 中的密鑰同步為 K8S Native Secrets。
